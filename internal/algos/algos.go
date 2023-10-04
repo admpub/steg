@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/zedseven/steg/internal/util"
+	"github.com/admpub/steg/internal/util"
 )
 
 // Algorithm definitions
@@ -33,13 +33,13 @@ func (algo Algo) String() string {
 
 const (
 	// AlgoUnknown is an unknown algorithm type.
-	AlgoUnknown    Algo = iota
+	AlgoUnknown Algo = iota
 	// AlgoSequential is an algorithm that works sequentially, from 0 to Max.
 	AlgoSequential Algo = iota
 	// AlgoPattern is an algorithm that returns unique, random addresses in the range of 0 to Max.
-	AlgoPattern    Algo = iota
+	AlgoPattern Algo = iota
 	// maxAlgoVal is the maximum algorithm value, used exclusively for validity checking for the Algo type.
-	maxAlgoVal     Algo = iota - 1
+	maxAlgoVal Algo = iota - 1
 )
 
 // Error types
@@ -56,7 +56,7 @@ func (e UnknownAlgoError) Error() string {
 }
 
 // EmptyPoolError is thrown when an algorithm addressor is called but it's pool of available addresses to hand out is empty.
-type EmptyPoolError struct {}
+type EmptyPoolError struct{}
 
 // Error returns a string that explains the EmptyPoolError.
 func (e EmptyPoolError) Error() string {
@@ -99,7 +99,7 @@ func PatternAddressor(seed, channels int64, bitsPerChannel uint8) func() (int64,
 		pool = pool[:poolSize]
 
 		return p, nil
-	}//, &pool
+	} //, &pool
 }
 
 // Algorithm type interfacing methods

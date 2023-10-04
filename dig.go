@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/admpub/steg/internal/algos"
+	"github.com/admpub/steg/internal/util"
 	"github.com/zedseven/bch"
 	"github.com/zedseven/binmani"
-	"github.com/zedseven/steg/internal/algos"
-	"github.com/zedseven/steg/internal/util"
 )
 
 // Types
@@ -15,26 +15,26 @@ import (
 // DigConfig stores the configuration options for the Dig operation.
 type DigConfig struct {
 	// ImagePath is the path on disk to a supported image.
-	ImagePath         string
+	ImagePath string
 	// OutPath is the path on disk to write the output image.
-	OutPath           string
+	OutPath string
 	// PatternPath is the path on disk to the pattern file used in decoding.
-	PatternPath       string
+	PatternPath string
 	// Algorithm is the algorithm to use in the operation.
-	Algorithm         algos.Algo
+	Algorithm algos.Algo
 	// MaxCorrectableErrors is the number of bit errors to be able to correct for per file chunk. Setting it to 0 disables bit ECC.
 	MaxCorrectableErrors uint8
 	// MaxBitsPerChannel is the maximum number of bits to write per pixel channel.
 	// The minimum of this and the supported max of the image format is used.
 	MaxBitsPerChannel uint8
 	// DecodeAlpha is whether or not to decode the alpha channel.
-	DecodeAlpha       bool
+	DecodeAlpha bool
 	// DecodeMsb is whether to decode the most-significant bits instead - mostly for debugging.
-	DecodeMsb         bool
+	DecodeMsb bool
 }
 
 // BadHeaderError is thrown when the read header is garbage. Likely caused by a bad configuration or source image.
-type BadHeaderError struct {}
+type BadHeaderError struct{}
 
 // Error returns a string that explains the BadHeaderError.
 func (e *BadHeaderError) Error() string {
@@ -59,7 +59,7 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 	if !config.Algorithm.IsValid() {
 		return &InvalidFormatError{"Algorithm is invalid."}
 	}
-	if config.MaxBitsPerChannel < 0 || config.MaxBitsPerChannel > 16 {
+	if config.MaxBitsPerChannel > 16 {
 		return &InvalidFormatError{fmt.Sprintf("MaxBitsPerChannel is outside the allowed range of 0-16: Provided %d.", config.MaxBitsPerChannel)}
 	}
 
@@ -77,8 +77,7 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 
 	printlnLvl(outputLevel, OutputInfo,
 		fmt.Sprintf("Image info:\n\tDimensions: %dx%dpx\n\tColour model: %v\n\tChannels per pixel: %d\n\tBits per channel: %d",
-		info.W, info.H, colourModelToStr(info.Format.Model), info.Format.ChannelsPerPix, info.Format.BitsPerChannel))
-
+			info.W, info.H, colourModelToStr(info.Format.Model), info.Format.ChannelsPerPix, info.Format.BitsPerChannel))
 
 	printlnLvl(outputLevel, OutputSteps, "Loading up the pattern key...")
 	pHash, err := hashPatternFile(config.PatternPath)
@@ -89,7 +88,6 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 	}
 	printlnLvl(outputLevel, OutputInfo, "Pattern hash:", pHash)
 
-
 	printlnLvl(outputLevel, OutputSteps, "Reading the file from the image...")
 
 	channelsPerPix := info.Format.ChannelsPerPix
@@ -97,21 +95,20 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 		channelsPerPix--
 	}
 	if channelsPerPix <= 0 { // In the case of Alpha & Alpha16 models
-		return &InsufficientHidingSpotsError{AdditionalInfo:fmt.Sprintf("The provided image is of the %v colour" +
+		return &InsufficientHidingSpotsError{AdditionalInfo: fmt.Sprintf("The provided image is of the %v colour"+
 			"model, but since alpha-channel encoding was not specified, there are no channels to hide data within.",
 			colourModelToStr(info.Format.Model))}
 	}
 
 	channelCount := int64(len(*pixels)) * int64(channelsPerPix)
-	printlnLvl(outputLevel, OutputInfo, "Maximum readable bits:", channelCount * int64(config.MaxBitsPerChannel))
+	printlnLvl(outputLevel, OutputInfo, "Maximum readable bits:", channelCount*int64(config.MaxBitsPerChannel))
 
 	f, err := algos.AlgoAddressor(config.Algorithm, pHash, channelCount, config.MaxBitsPerChannel)
 	if err != nil {
 		return err
 	}
 
-
-	var eccConfig *bch.EncodingConfig = nil
+	var eccConfig *bch.EncodingConfig
 	if config.MaxCorrectableErrors > 0 {
 		printlnLvl(outputLevel, OutputSteps, "Setting up data ECC...")
 		chunkBitSize := util.Max(int(encodeChunkSize), int(encodeHeaderSize)) * int(bitsPerByte)
@@ -125,9 +122,8 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 			return err
 		}
 		printlnLvl(outputLevel, OutputInfo, fmt.Sprintf("Using a %v. This has a ratio (errors : bits) of %2.2f%%.",
-			eccConfig, 100 * eccConfig.ECCRatio()))
+			eccConfig, 100*eccConfig.ECCRatio()))
 	}
-
 
 	eccErrors := 0
 
@@ -137,7 +133,7 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 	if eccErrors, err = decodeChunk(config, eccConfig, info, &f, pixels, channelsPerPix, &header, int(encodeHeaderSize), outputLevel); err != nil {
 		switch err.(type) {
 		case *algos.EmptyPoolError:
-			return &InsufficientHidingSpotsError{InnerError:err}
+			return &InsufficientHidingSpotsError{InnerError: err}
 		default:
 			return err
 		}
@@ -179,7 +175,6 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 
 	printlnLvl(outputLevel, OutputInfo, fmt.Sprintf("Output file size: %d B", fileSize))
 
-
 	printlnLvl(outputLevel, OutputSteps, fmt.Sprintf("Creating the output file at '%v'...", config.OutPath))
 	outFile, err := os.Create(config.OutPath)
 	if err != nil {
@@ -193,15 +188,14 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 		}
 	}()
 
-
 	printlnLvl(outputLevel, OutputSteps, fmt.Sprintf("Writing to the output file at '%v'...", config.OutPath))
 	readBytes := int64(0)
 	for readBytes < fileSize {
-		n := util.Min(int(encodeChunkSize), int(fileSize - readBytes))
+		n := util.Min(int(encodeChunkSize), int(fileSize-readBytes))
 		if errors, err := decodeChunk(config, eccConfig, info, &f, pixels, channelsPerPix, &b, n, outputLevel); err != nil {
 			switch err.(type) {
 			case *algos.EmptyPoolError:
-				return &InsufficientHidingSpotsError{InnerError:err}
+				return &InsufficientHidingSpotsError{InnerError: err}
 			default:
 				return err
 			}
@@ -218,7 +212,6 @@ func Dig(config *DigConfig, outputLevel OutputLevel) error {
 	if config.MaxCorrectableErrors > 0 {
 		printlnLvl(outputLevel, OutputInfo, fmt.Sprintf("There were %d error(s) in the image.", eccErrors))
 	}
-
 
 	printlnLvl(outputLevel, OutputSteps, "All done! c:")
 
@@ -272,7 +265,7 @@ func decodeChunk(config *DigConfig, eccConfig *bch.EncodingConfig, info imgInfo,
 	var eccErrors int
 	if eccConfig != nil {
 		printlnLvl(outputLevel, OutputDebug, codeBits)
-		padBits := make([]uint8, eccConfig.CodeLength - readLength)
+		padBits := make([]uint8, eccConfig.CodeLength-readLength)
 		codeBits = append(codeBits, padBits...)
 		decodedBits, errors, err := bch.Decode(eccConfig, &codeBits)
 		if err != nil {

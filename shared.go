@@ -16,11 +16,11 @@ const (
 	encodeHeaderSize      uint8  = 32
 	encodeHeaderSeparator string = ";"
 	// VersionMax is the primary version component of the package.
-	VersionMax            uint8  = 0
+	VersionMax uint8 = 0
 	// VersionMid is the secondary version component of the package.
-	VersionMid            uint8  = 9
+	VersionMid uint8 = 9
 	// VersionMin is the tertiary version component of the package.
-	VersionMin            uint8  = 0
+	VersionMin uint8 = 0
 )
 
 // Shared types
@@ -32,16 +32,14 @@ const (
 	// OutputNothing tells the package to be completely quiet.
 	OutputNothing OutputLevel = iota
 	// OutputSteps tells the package to print operation progress at each significant step of the process.
-	OutputSteps   OutputLevel = iota
+	OutputSteps OutputLevel = iota
 	// OutputInfo tells the package to print operation progress at each significant step of the process, and include additional information.
-	OutputInfo    OutputLevel = iota
+	OutputInfo OutputLevel = iota
 	// OutputDebug tells the package to print formatted debug information in addition to everything else.
-	OutputDebug   OutputLevel = iota
+	OutputDebug OutputLevel = iota
 )
 
-
 type pixel []uint16
-
 
 type fmtInfo struct {
 	Model          color.Model
@@ -72,7 +70,6 @@ func (info *fmtInfo) String() string {
 	return fmt.Sprintf("{%v %d %d}", colourModelToStr(info.Model), info.ChannelsPerPix, info.BitsPerChannel)
 }
 
-
 type imgInfo struct {
 	W, H   uint
 	Format fmtInfo
@@ -80,7 +77,7 @@ type imgInfo struct {
 
 // Error types
 
-type unknownColourModelError struct {}
+type unknownColourModelError struct{}
 
 func (e unknownColourModelError) Error() string {
 	return "The colour model of the provided Image is unknown."
@@ -106,7 +103,7 @@ type InsufficientHidingSpotsError struct {
 	// Additional information about the problem.
 	AdditionalInfo string
 	// An inner error involved in the issue to provide more information.
-	InnerError     error
+	InnerError error
 }
 
 // Error returns a string that explains the InsufficientHidingSpotsError.
@@ -162,7 +159,7 @@ func hashPatternFile(patternPath string) (int64, error) {
 // PCB = Pixel, Channel, Bit
 func bitAddrToPCB(addr int64, channels, bitsPerChannel uint8) (pix int64, channel, bit uint8) {
 	// Would normally floor here, but since all values are >= 0, integer division handles this for us
-	pix = addr / int64(channels * bitsPerChannel)
+	pix = addr / int64(channels*bitsPerChannel)
 	channel = uint8((addr / int64(bitsPerChannel)) % int64(channels))
 	bit = uint8(addr % int64(bitsPerChannel))
 	return
@@ -177,5 +174,11 @@ func posToXY(pos int64, w int) (x, y int) {
 func printlnLvl(level, minLevel OutputLevel, val ...interface{}) {
 	if level >= minLevel {
 		fmt.Println(val...)
+	}
+}
+
+func printfLvl(level, minLevel OutputLevel, format string, val ...interface{}) {
+	if level >= minLevel {
+		fmt.Printf(format, val...)
 	}
 }

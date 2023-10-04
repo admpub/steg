@@ -85,18 +85,18 @@ func writeImage(pixels *[]pixel, info imgInfo, outPath string, outputLevel Outpu
 
 	f, err := os.Create(outPath)
 	if err != nil {
-		printlnLvl(outputLevel, OutputSteps, "There was an error creating the file '%v'.\n", outPath)
+		printfLvl(outputLevel, OutputSteps, "There was an error creating the file '%v'.\n", outPath)
 		return err
 	}
 
 	defer func() {
 		if err = f.Close(); err != nil {
-			printlnLvl(outputLevel, OutputSteps, "Error closing the file '%v': %v", outPath, err.Error())
+			printfLvl(outputLevel, OutputSteps, "Error closing the file '%v': %v\n", outPath, err.Error())
 		}
 	}()
 
 	// TODO: Add support for additional format exports
-	encoder := png.Encoder{CompressionLevel:png.BestCompression}
+	encoder := png.Encoder{CompressionLevel: png.BestCompression}
 	err = encoder.Encode(f, img)
 	if err != nil {
 		printlnLvl(outputLevel, OutputSteps, "There was an error encoding the image to the new file.")
@@ -118,45 +118,36 @@ func readPixels(imgFile io.Reader) (pixels *[]pixel, info imgInfo, err error) {
 	dims := img.Bounds()
 	w, h := dims.Max.X, dims.Max.Y
 
-	info = imgInfo{W: uint(w), H:uint(h)}
+	info = imgInfo{W: uint(w), H: uint(h)}
 
 	// Each colour model has to be handled individually
-	switch img.(type) {
+	switch simg := img.(type) {
 	case *image.Alpha16:
 		info.Format = fmtInfo{color.Alpha16Model, 4, 16}
-		simg := img.(*image.Alpha16)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.Alpha:
 		info.Format = fmtInfo{color.AlphaModel, 4, 8}
-		simg := img.(*image.Alpha)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.CMYK:
 		info.Format = fmtInfo{color.CMYKModel, 4, 8}
-		simg := img.(*image.CMYK)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.Gray16:
 		info.Format = fmtInfo{color.Gray16Model, 4, 16}
-		simg := img.(*image.Gray16)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.Gray:
 		info.Format = fmtInfo{color.GrayModel, 4, 8}
-		simg := img.(*image.Gray)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.NRGBA64:
 		info.Format = fmtInfo{color.NRGBA64Model, 4, 16}
-		simg := img.(*image.NRGBA64)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.NRGBA:
 		info.Format = fmtInfo{color.NRGBAModel, 4, 8}
-		simg := img.(*image.NRGBA)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.RGBA64:
 		info.Format = fmtInfo{color.RGBA64Model, 4, 16}
-		simg := img.(*image.RGBA64)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	case *image.RGBA:
 		info.Format = fmtInfo{color.RGBAModel, 4, 8}
-		simg := img.(*image.RGBA)
 		pixels = imgPixToPixels(&simg.Pix, info.Format)
 	default:
 		return nil, info, unknownColourModelError{}
@@ -166,7 +157,7 @@ func readPixels(imgFile io.Reader) (pixels *[]pixel, info imgInfo, err error) {
 
 func imgPixToPixels(pix *[]uint8, info fmtInfo) *[]pixel {
 	bytesPerChannel := info.BitsPerChannel / bitsPerByte
-	pixels := make([]pixel, len(*pix) / int(info.ChannelsPerPix * bytesPerChannel))
+	pixels := make([]pixel, len(*pix)/int(info.ChannelsPerPix*bytesPerChannel))
 	for i := range pixels {
 		pixels[i] = make([]uint16, info.ChannelsPerPix)
 		for j := uint8(0); j < info.ChannelsPerPix; j++ {
@@ -174,7 +165,7 @@ func imgPixToPixels(pix *[]uint8, info fmtInfo) *[]pixel {
 			// across separate indices (https://golang.org/src/image/image.go?s=8222:8528#L380)
 			for k := uint8(0); k < info.bytesPerChannel(); k++ {
 				pixels[i][j] <<= bitsPerByte
-				pixels[i][j] += uint16((*pix)[i * int(info.ChannelsPerPix * bytesPerChannel) + int(j * bytesPerChannel)])
+				pixels[i][j] += uint16((*pix)[i*int(info.ChannelsPerPix*bytesPerChannel)+int(j*bytesPerChannel)])
 			}
 		}
 	}
@@ -186,8 +177,8 @@ func updatePixWithPixels(pix *[]uint8, pixels *[]pixel, info fmtInfo) {
 	for i := range *pixels {
 		for j := range (*pixels)[i] {
 			for k := uint8(0); k < bytes; k++ {
-				(*pix)[(i * int(info.ChannelsPerPix) + j) * int(bytes) + int(k)] =
-					uint8(binmani.ReadFrom((*pixels)[i][j], (bytes - 1 - k) * bitsPerByte, bitsPerByte))
+				(*pix)[(i*int(info.ChannelsPerPix)+j)*int(bytes)+int(k)] =
+					uint8(binmani.ReadFrom((*pixels)[i][j], (bytes-1-k)*bitsPerByte, bitsPerByte))
 			}
 		}
 	}

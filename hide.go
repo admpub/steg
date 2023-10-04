@@ -7,33 +7,33 @@ import (
 	"math"
 	"os"
 
+	"github.com/admpub/steg/internal/algos"
+	"github.com/admpub/steg/internal/util"
 	"github.com/zedseven/bch"
 	"github.com/zedseven/binmani"
-	"github.com/zedseven/steg/internal/algos"
-	"github.com/zedseven/steg/internal/util"
 )
 
 // HideConfig stores the configuration options for the Hide operation.
 type HideConfig struct {
 	// ImagePath is the path on disk to a supported image.
-	ImagePath            string
+	ImagePath string
 	// FilePath is the path on disk to the file to hide.
-	FilePath             string
+	FilePath string
 	// OutPath is the path on disk to write the output image.
-	OutPath              string
+	OutPath string
 	// PatternPath is the path on disk to the pattern file used in encoding.
-	PatternPath          string
+	PatternPath string
 	// Algorithm is the algorithm to use in the operation.
-	Algorithm            algos.Algo
+	Algorithm algos.Algo
 	// MaxCorrectableErrors is the number of bit errors to be able to correct for per file chunk. Setting it to 0 disables bit ECC.
 	MaxCorrectableErrors uint8
 	// MaxBitsPerChannel is the maximum number of bits to write per pixel channel.
 	// The minimum of this and the supported max of the image format is used.
-	MaxBitsPerChannel    uint8
+	MaxBitsPerChannel uint8
 	// DecodeAlpha is whether or not to encode the alpha channel.
-	EncodeAlpha          bool
+	EncodeAlpha bool
 	// EncodeMsb is whether to encode the most-significant bits instead - mostly for debugging.
-	EncodeMsb            bool
+	EncodeMsb bool
 }
 
 // Hide hides the binary data of a file in a provided image on disk, and saves the result to a new image.
@@ -55,10 +55,7 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 	if !config.Algorithm.IsValid() {
 		return &InvalidFormatError{"Algorithm is invalid."}
 	}
-	if config.MaxCorrectableErrors < 0 {
-		return &InvalidFormatError{"MaxCorrectableErrors must be non-negative."}
-	}
-	if config.MaxBitsPerChannel < 0 || config.MaxBitsPerChannel > 16 {
+	if config.MaxBitsPerChannel > 16 {
 		return &InvalidFormatError{fmt.Sprintf("MaxBitsPerChannel is outside the allowed range of 0-16: Provided %d.", config.MaxBitsPerChannel)}
 	}
 
@@ -76,7 +73,7 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 
 	printlnLvl(outputLevel, OutputInfo,
 		fmt.Sprintf("Image info:\n\tDimensions: %dx%dpx\n\tColour model: %v\n\tChannels per pixel: %d\n\tBits per channel: %d",
-		info.W, info.H, colourModelToStr(info.Format.Model), info.Format.ChannelsPerPix, info.Format.BitsPerChannel))
+			info.W, info.H, colourModelToStr(info.Format.Model), info.Format.ChannelsPerPix, info.Format.BitsPerChannel))
 
 	printlnLvl(outputLevel, OutputSteps, fmt.Sprintf("Opening the file at '%v'...", config.FilePath))
 	fileReader, err := os.Open(config.FilePath)
@@ -91,7 +88,6 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 		}
 	}()
 
-
 	printlnLvl(outputLevel, OutputSteps, "Loading up the pattern key...")
 	pHash, err := hashPatternFile(config.PatternPath)
 	if err != nil {
@@ -100,7 +96,6 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 		return err
 	}
 	printlnLvl(outputLevel, OutputInfo, "Pattern hash:", pHash)
-
 
 	printlnLvl(outputLevel, OutputSteps, "Encoding the file into the image...")
 
@@ -112,7 +107,7 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 		channelsPerPix--
 	}
 	if channelsPerPix <= 0 { // In the case of Alpha & Alpha16 models
-		return &InsufficientHidingSpotsError{AdditionalInfo:fmt.Sprintf("The provided image is of the %v colour" +
+		return &InsufficientHidingSpotsError{AdditionalInfo: fmt.Sprintf("The provided image is of the %v colour"+
 			"model, but since alpha-channel encoding was not specified, there are no channels to hide data within.",
 			colourModelToStr(info.Format.Model))}
 	}
@@ -125,7 +120,6 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 	if err != nil {
 		return err
 	}
-
 
 	printlnLvl(outputLevel, OutputSteps, "Writing steg header...")
 
@@ -163,14 +157,14 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 			return err
 		}
 		printlnLvl(outputLevel, OutputInfo, fmt.Sprintf("Using a %v. This has a ratio (errors : bits) of %2.2f%%.",
-			eccConfig, 100 * eccConfig.ECCRatio()))
+			eccConfig, 100*eccConfig.ECCRatio()))
 
-		bitsToWrite = int64(math.Ceil(float64(bitsToWrite) / float64(eccConfig.StorageBits))) * int64(eccConfig.ChecksumBits()) + bitsToWrite
+		bitsToWrite = int64(math.Ceil(float64(bitsToWrite)/float64(eccConfig.StorageBits)))*int64(eccConfig.ChecksumBits()) + bitsToWrite
 		printlnLvl(outputLevel, OutputSteps, "Actual bits to write (including ECC):", bitsToWrite)
 	}
 
 	if bitsToWrite > maxWritableBits {
-		return &InsufficientHidingSpotsError{AdditionalInfo:fmt.Sprintf("Since the number of bits to write is %d " +
+		return &InsufficientHidingSpotsError{AdditionalInfo: fmt.Sprintf("Since the number of bits to write is %d "+
 			"and the maximum possible with this configuration is %d, there is no way the input file will fit.", bitsToWrite, maxWritableBits)}
 	}
 
@@ -179,12 +173,11 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 	if err = encodeChunk(config, eccConfig, info, &f, pixels, channelsPerPix, &b, int(encodeHeaderSize), outputLevel); err != nil {
 		switch err.(type) {
 		case *algos.EmptyPoolError:
-			return &InsufficientHidingSpotsError{InnerError:err}
+			return &InsufficientHidingSpotsError{InnerError: err}
 		default:
 			return err
 		}
 	}
-
 
 	printlnLvl(outputLevel, OutputSteps, "Writing file data...")
 
@@ -200,7 +193,7 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 			if err = encodeChunk(config, eccConfig, info, &f, pixels, channelsPerPix, &b, n, outputLevel); err != nil {
 				switch err.(type) {
 				case *algos.EmptyPoolError:
-					return &InsufficientHidingSpotsError{InnerError:err}
+					return &InsufficientHidingSpotsError{InnerError: err}
 				default:
 					return err
 				}
@@ -215,13 +208,11 @@ func Hide(config *HideConfig, outputLevel OutputLevel) error {
 		}
 	}
 
-
 	printlnLvl(outputLevel, OutputSteps, fmt.Sprintf("Writing the encoded image to '%v' now...", config.OutPath))
 	if err = writeImage(pixels, info, config.OutPath, outputLevel); err != nil {
 		printlnLvl(outputLevel, OutputSteps, "An error occurred while writing to the final image.")
 		return err
 	}
-
 
 	printlnLvl(outputLevel, OutputSteps, "All done! c:")
 
@@ -239,10 +230,10 @@ func encodeChunk(config *HideConfig, eccConfig *bch.EncodingConfig, info imgInfo
 		dataBits := binmani.BytesToBits((*buf)[:n])
 		printlnLvl(outputLevel, OutputDebug, dataBits)
 
-		if eccConfig.StorageBits < n * int(bitsPerByte) {
+		if eccConfig.StorageBits < n*int(bitsPerByte) {
 			panic("Provided with a mismatched bch.EncodingConfig for the data to be encoded!")
-		} else if eccConfig.StorageBits > n * int(bitsPerByte) {
-			padBits := make([]uint8, eccConfig.StorageBits - n * int(bitsPerByte))
+		} else if eccConfig.StorageBits > n*int(bitsPerByte) {
+			padBits := make([]uint8, eccConfig.StorageBits-n*int(bitsPerByte))
 			*dataBits = append(*dataBits, padBits...)
 		}
 
@@ -250,7 +241,7 @@ func encodeChunk(config *HideConfig, eccConfig *bch.EncodingConfig, info imgInfo
 		if err != nil {
 			return err
 		}
-		writeBits = encodedBits[:n * int(bitsPerByte) + eccConfig.ChecksumBits()]
+		writeBits = encodedBits[:n*int(bitsPerByte)+eccConfig.ChecksumBits()]
 		printlnLvl(outputLevel, OutputDebug, writeBits)
 	} else {
 		writeBits = *binmani.BytesToBits((*buf)[:n])

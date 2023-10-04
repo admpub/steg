@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zedseven/steg"
-	"github.com/zedseven/steg/internal/algos"
+	"github.com/admpub/steg"
+	"github.com/admpub/steg/internal/algos"
 )
 
 // Program entry point
@@ -110,14 +110,14 @@ func main() {
 		}
 	case "dig":
 		config := steg.DigConfig{
-			ImagePath:         *imgPath,
-			OutPath:           *outPath,
-			PatternPath:       *patternPath,
-			Algorithm:         algo,
+			ImagePath:            *imgPath,
+			OutPath:              *outPath,
+			PatternPath:          *patternPath,
+			Algorithm:            algo,
 			MaxCorrectableErrors: uint8(*maxCorrectableErrors),
-			MaxBitsPerChannel: uint8(*bits),
-			DecodeAlpha:       *encodeAlpha,
-			DecodeMsb:         *msb,
+			MaxBitsPerChannel:    uint8(*bits),
+			DecodeAlpha:          *encodeAlpha,
+			DecodeMsb:            *msb,
 		}
 		if err := steg.Dig(&config, level); err != nil {
 			fmt.Println(err.Error())
@@ -133,4 +133,3 @@ func main() {
 		return
 	}
 }
-
